@@ -14,9 +14,12 @@ Packages
 library(here)
 library(rgbif)
 library(sf)
+library(maps)
+library(measurements)
+library(tidyverse)
 ```
 
-Process bounding box for SMF
+Process the bounding box for SMF
 
 top left:
  lat: 34.465504°
@@ -37,30 +40,68 @@ Test your WKT object here: http://arthur-e.github.io/Wicket/sandbox-gmaps3.html
 (Print your wkt object n)
 
 ```{r}
-SMF_wkt <- gbif_bbox2wkt(minx = -119.750857, miny = 34.454424, maxx = -119.771787, maxy = 34.465504)
+SMF_wkt <- gbif_bbox2wkt(maxx = -119.750857, miny = 34.454424, minx = -119.771787, maxy = 34.465504)
 # SMF_wkt # print this, open the sand box link, copy the results into the box, then press Map It!
 ```
 
 Import GBIF data for R
+Class aves (birds) is taxon ID 212: https://www.gbif.org/species/212
 ```{r}
 # download GBIF occurrence data for this species; this takes time if there are many data points!
-gbif_data <- occ_data(hasCoordinate = TRUE, geometry = SMF_wkt, year = "1990, 2023", limit = 3500)
+gbif_data <- occ_data(hasCoordinate = TRUE, geometry = SMF_wkt, classKey = 212, year = "1990, 2023", limit = 30000)
 
 # take a look at the downloaded data:
 gbif_data
 
 # if "Records found" is larger than "Records returned", you need to increase the 'limit' argument above -- see help(occ_data) for options and limitations
-# as of 2023-02-18, there are 2-3k records for this species in our region
+# as of 2023-11, there are ~14k records for birds in our region
 
 # get the DOIs for citing these data properly
 citation <- gbif_citation(gbif_data)
 
 # get the columns that matter for mapping and cleaning the occurrence data
-myspecies_coords <- gbif_data$data[ , c("decimalLongitude", "decimalLatitude", "occurrenceStatus", "eventDate", "coordinateUncertaintyInMeters", "institutionCode", "references")]
+myspecies_coords <- gbif_data$data[ , c("decimalLongitude", "decimalLatitude", "order", "family", "genus", "species", "taxonomicStatus", "iucnRedListCategory", "individualCount", "eventDate", "year", "month", "day", "eventTime", "coordinateUncertaintyInMeters", "collectionCode", "references")]
 #head(myspecies_coords)
+```
 
-# map the occurrence data
-map("world", xlim = range(myspecies_coords$decimalLongitude), ylim = range(myspecies_coords$decimalLatitude))  # if the map doesn't appear right at first, run this command again
-points(myspecies_coords[ , c("decimalLongitude", "decimalLatitude")], pch = ".")
+Test data and display
+
+```{r}
+# convert frame points to decimal degrees
+lat_minx <- -119.771787
+long_maxy <- 34.465504
+lat_maxx <- -119.750857
+long_miny <- 34.454424
+
+# map the occurrence data to test it
+# if the map doesn't appear right at first, run this command again
+map("world", xlim = c(lat_minx, lat_maxx), ylim = c(long_miny, long_maxy)) # set boundaries ("frame")
+points(myspecies_coords[ , c("decimalLongitude", "decimalLatitude")], pch = ".") # add points
+```
+
+Summary statistics
+```{r}
+# individualCount column is the # of individuals per observation
+
+# some observations say NA, and we will assume NA = 1
+# head(myspecies_coords[is.na(myspecies_coords$individualCount) == TRUE,]) <- 1 # test to see how many are NA (returned 675)
+myspecies_coords[is.na(myspecies_coords$individualCount) == TRUE,]$individualCount <- 1
+# test that it worked (should return 1, not NA)
+# min(myspecies_coords$individualCount, na.rm = FALSE)
+
+sum_order_year <- myspecies_coords %>% 
+  group_by(order, year) %>% 
+  summarise(total = sum(individualCount))
+```
+
+Visualize
+```{r}
+# bird order by year
+ggplot(sum_order_year, aes(fill=order, y=total, x=year)) + 
+    geom_bar(stat="identity")
+
+# parallel plot, order by year with families visible
+
+# plot of lines and change over time relative to year 1
 ```
 
