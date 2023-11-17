@@ -82,6 +82,8 @@ map("world", xlim = c(lat_minx, lat_maxx), ylim = c(long_miny, long_maxy)) # set
 points(myspecies_coords[ , c("decimalLongitude", "decimalLatitude")], pch = ".") # add points
 ```
 
+## Broken up by year
+
 Summary statistics
 ```{r}
 # individualCount column is the # of individuals per observation
@@ -103,8 +105,6 @@ Visualize
 ggplot(sum_order_year, aes(fill=order, y=total, x=year)) + 
     geom_bar(stat="identity")
 
-# parallel plot, order by year with families visible
-
 # ridgeline plot
 ggplot(myspecies_coords, aes(x = year, y = order, fill = order)) +
   geom_density_ridges() +
@@ -113,12 +113,42 @@ ggplot(myspecies_coords, aes(x = year, y = order, fill = order)) +
   ylab("Order") +
   xlab("Year")
 
+```
+
+Plots in progress
+```{r}
+
 ggparcoord(myspecies_coords,
     columns = 1:4, groupColumn = 5
     ) 
 
 # plot of lines and change over time relative to year 1
 
+# parallel plot, order by year with families visible
+
 
 ```
 
+## Broken up by month
+
+```{r}
+sum_order_month <- myspecies_coords %>% 
+  group_by(order, month) %>% 
+  summarise(total = sum(individualCount))
+```
+
+Visualize
+```{r}
+# bird order by year
+ggplot(sum_order_month, aes(fill=order, y=total, x=month)) + 
+    geom_bar(stat="identity")
+
+# ridgeline plot
+ggplot(myspecies_coords, aes(x = month, y = order, fill = order)) +
+  geom_density_ridges() +
+  theme_ridges() + 
+  theme(legend.position = "none") +
+  ylab("Order") +
+  xlab("Month")
+
+```
