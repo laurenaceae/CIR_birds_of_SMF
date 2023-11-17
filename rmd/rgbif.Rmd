@@ -17,6 +17,9 @@ library(sf)
 library(maps)
 library(measurements)
 library(tidyverse)
+library(GGally)
+library(ggridges)
+
 ```
 
 Process the bounding box for SMF
@@ -102,6 +105,20 @@ ggplot(sum_order_year, aes(fill=order, y=total, x=year)) +
 
 # parallel plot, order by year with families visible
 
+# ridgeline plot
+ggplot(myspecies_coords, aes(x = year, y = order, fill = order)) +
+  geom_density_ridges() +
+  theme_ridges() + 
+  theme(legend.position = "none") +
+  ylab("Order") +
+  xlab("Year")
+
+ggparcoord(myspecies_coords,
+    columns = 1:4, groupColumn = 5
+    ) 
+
 # plot of lines and change over time relative to year 1
+
+
 ```
 
