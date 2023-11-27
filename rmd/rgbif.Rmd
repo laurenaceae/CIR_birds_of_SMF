@@ -19,7 +19,7 @@ library(measurements)
 library(tidyverse)
 library(GGally)
 library(ggridges)
-
+library(lubridate)
 ```
 
 Process the bounding box for SMF
@@ -78,8 +78,8 @@ long_miny <- 34.454424
 
 # map the occurrence data to test it
 # if the map doesn't appear right at first, run this command again
-map("world", xlim = c(lat_minx, lat_maxx), ylim = c(long_miny, long_maxy)) # set boundaries ("frame")
-points(myspecies_coords[ , c("decimalLongitude", "decimalLatitude")], pch = ".") # add points
+#map("world", xlim = c(lat_minx, lat_maxx), ylim = c(long_miny, long_maxy)) # set boundaries ("frame")
+#points(myspecies_coords[ , c("decimalLongitude", "decimalLatitude")], pch = ".") # add points
 ```
 
 ## Broken up by year
@@ -93,6 +93,8 @@ Summary statistics
 myspecies_coords[is.na(myspecies_coords$individualCount) == TRUE,]$individualCount <- 1
 # test that it worked (should return 1, not NA)
 # min(myspecies_coords$individualCount, na.rm = FALSE)
+
+myspecies_coords$month_abb <- factor(month.abb[myspecies_coords$month],levels=month.abb) # add month abbreviation
 
 sum_order_year <- myspecies_coords %>% 
   group_by(order, year) %>% 
@@ -133,15 +135,19 @@ ggparcoord(myspecies_coords,
 
 ```{r}
 sum_order_month <- myspecies_coords %>% 
+  filter(year > 2009) %>% # keep only records from 2010 and on
   group_by(order, month) %>% 
   summarise(total = sum(individualCount))
+
+sum_order_month$month_abb <- factor(month.abb[sum_order_month$month],levels=month.abb) # add month abbreviation
+
 ```
 
-Visualize
+Visualize 
 ```{r}
-# bird order by year
-ggplot(sum_order_month, aes(fill=order, y=total, x=month)) + 
-    geom_bar(stat="identity")
+# bird order by month
+ggplot(sum_order_month, aes(fill=order, y=total, x=month_abb)) + 
+  geom_bar(stat="identity") 
 
 # ridgeline plot
 ggplot(myspecies_coords, aes(x = month, y = order, fill = order)) +
