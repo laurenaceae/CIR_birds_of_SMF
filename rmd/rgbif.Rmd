@@ -158,3 +158,51 @@ ggplot(myspecies_coords, aes(x = month, y = order, fill = order)) +
   xlab("Month")
 
 ```
+
+## Creating frame for new ecological data
+
+```{r}
+alltaxa <- myspecies_coords %>% 
+  filter(taxonomicStatus == "ACCEPTED") %>% # remove synonymous taxa
+  distinct(order, family, genus, species) 
+
+# identify synonyms to look up and replace later
+nrow(alltaxa)
+length(unique(myspecies_coords$species)) # same value + number of removed synonyms
+syntaxa <- myspecies_coords %>% 
+  filter(taxonomicStatus == "SYNONYM") %>% # keep only synonymous taxa
+  distinct(order, family, genus, species) 
+
+```
+
+Export csv to fill in guilds/ecology
+```{r, eval = FALSE}
+write.csv(alltaxa, file = here("data", "output", "alltaxa.csv"))
+```
+
+import data
+```{r}
+alltaxa_diet <- read.csv(here("data", "input", "alltaxa.csv"))
+```
+
+bind new categories to bird species, then to all observations
+```{r}
+dietkey <- alltaxa_diet %>% 
+  select(species, diet) 
+
+alltaxa_eco <- left_join(myspecies_coords, dietkey, by = "species")
+```
+
+
+group_by and summarize
+```{r}
+sum_diet_month <- alltaxa_eco %>% 
+  filter(year > 2009) %>% # keep only records from 2010 and on
+  group_by(diet, month) %>% 
+  summarise(total = sum(individualCount))
+
+sum_diet_month$month_abb <- factor(month.abb[sum_diet_month$month],levels=month.abb) # add month abbreviation
+```
+
+visualize
+
