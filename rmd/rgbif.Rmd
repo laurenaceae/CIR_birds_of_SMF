@@ -190,13 +190,13 @@ bind new categories to bird species, then to all observations
 dietkey <- alltaxa_diet %>% 
   select(species, diet) 
 
-alltaxa_eco <- left_join(myspecies_coords, dietkey, by = "species")
+myspecies_coords <- left_join(myspecies_coords, dietkey, by = "species")
 ```
 
 
 group_by and summarize
 ```{r}
-sum_diet_month <- alltaxa_eco %>% 
+sum_diet_month <- myspecies_coords %>% 
   filter(year > 2009) %>% # keep only records from 2010 and on
   group_by(diet, month) %>% 
   summarise(total = sum(individualCount))
@@ -205,4 +205,17 @@ sum_diet_month$month_abb <- factor(month.abb[sum_diet_month$month],levels=month.
 ```
 
 visualize
+```{r}
+# bird order by month
+ggplot(sum_diet_month, aes(fill=diet, y=total, x=month_abb)) + 
+  geom_bar(stat="identity") 
 
+# ridgeline plot
+ggplot(myspecies_coords, aes(x = month, y = diet, fill = diet)) +
+  geom_density_ridges() +
+  theme_ridges() + 
+  theme(legend.position = "none") +
+  ylab("Diet") +
+  xlab("Month")
+
+```
