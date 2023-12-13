@@ -63,13 +63,13 @@ gbif_data
 citation <- gbif_citation(gbif_data)
 
 # get the columns that matter for mapping and cleaning the occurrence data
-myspecies_coords <- gbif_data$data[ , c("decimalLongitude", "decimalLatitude", "order", "family", "genus", "species", "taxonomicStatus", "iucnRedListCategory", "individualCount", "eventDate", "year", "month", "day", "eventTime", "coordinateUncertaintyInMeters", "collectionCode", "references")]
+myspecies_coords <- gbif_data$data[ , c("decimalLongitude", "decimalLatitude", "order", "family", "genus", "species", "taxonomicStatus", "iucnRedListCategory", "individualCount", "eventDate", "year", "month", "day", "eventTime", "type", "recordedBy", "coordinateUncertaintyInMeters", "collectionCode", "references")]
 #head(myspecies_coords)
 ```
 
 Test data and display
 
-```{r}
+```{r, eval = FALSE}
 # convert frame points to decimal degrees
 lat_minx <- -119.771787
 long_maxy <- 34.465504
@@ -78,8 +78,8 @@ long_miny <- 34.454424
 
 # map the occurrence data to test it
 # if the map doesn't appear right at first, run this command again
-#map("world", xlim = c(lat_minx, lat_maxx), ylim = c(long_miny, long_maxy)) # set boundaries ("frame")
-#points(myspecies_coords[ , c("decimalLongitude", "decimalLatitude")], pch = ".") # add points
+map("world", xlim = c(lat_minx, lat_maxx), ylim = c(long_miny, long_maxy)) # set boundaries ("frame")
+points(myspecies_coords[ , c("decimalLongitude", "decimalLatitude")], pch = ".") # add points
 ```
 
 ## Broken up by year
@@ -118,7 +118,7 @@ ggplot(myspecies_coords, aes(x = year, y = order, fill = order)) +
 ```
 
 Plots in progress
-```{r}
+```{r, eval = FALSE}
 
 ggparcoord(myspecies_coords,
     columns = 1:4, groupColumn = 5
@@ -219,3 +219,115 @@ ggplot(myspecies_coords, aes(x = month, y = diet, fill = diet)) +
   xlab("Month")
 
 ```
+
+Question: How does sampling effort effect these results?
+
+count up unique name-date combinations. For every person that made observations on a day, that is 1 sampling effort for that day. 
+recordedBy = observer
+eventDate (truncated to year-month-day) = day
+
+type = PhysicalObject means museum specimen
+
+```{r}
+# count NAs in recordedBy (we want very few)
+sum(is.na(myspecies_coords$recordedBy))
+
+# remove all observations except for ebird (sampling effort varies between platforms/methods)
+myspecies_ebird <- myspecies_coords[myspecies_coords$collectionCode == "EBIRD",]
+
+
+# find observations per person to see if there are anomalies (note ebird observations will be high)
+ebird_sumstats <- myspecies_ebird %>% 
+  group_by(recordedBy, month) %>% 
+  summarize(n()) 
+
+ebird_sumstats_m <- ebird_sumstats %>% 
+  group_by(month) %>% 
+  summarize(count = n())
+
+# graph
+gg_effort <- ggplot(ebird_sumstats_m, aes(x = month, y = count)) +
+  geom_col()
+
+gg_effort
+```
+
+Now, let's graph the number of observations next to the level of effort to see if they link up or not
+
+```{r}
+ebird_effort <- ebird_sumstats_m 
+ebird_effort$total <- ebird_effort$count*100
+
+effort_combine <- ebird_effort %>% 
+  select(month, total) 
+
+effort_combine$order <- NA
+sum_order_month$month_abb <- NULL
+effort_combine$tag <- "b"
+sum_order_month$tag <- "a"
+
+combine <- full_join(sum_order_month, effort_combine, by = c("month", "total", "order", "tag"))
+
+
+combine$month_abb <- factor(month.abb[combine$month],levels=month.abb) # add month abbreviation
+
+# then for diet
+```
+
+plot
+```{r}
+ggplot(combine, aes(fill=order, y=total, x=month_abb)) + 
+  geom_bar(stat="identity") 
+```
+
+```{r}
+ggplot(mapping = aes(y = total)) +
+  geom_col(data = na.omit(combine), aes(x = as.numeric(month) + .15, fill = order), width = .3) +
+  geom_col(data = combine[is.na(combine$order), ], aes(x = as.numeric(month) + .15), width = .3) +
+  facet_grid(.~tag, switch = "x")
+
+ggplot(mapping = aes(y = total)) +
+  geom_col(data = filter(combine, tag == "a"), aes(x = as.numeric(month), fill = order), width = .3) +
+  geom_col(data = filter(combine, tag == "b"), aes(x = as.numeric(month)), width = .3) +
+  facet_grid(.~month, switch = "x") +
+  theme(strip.placement = "outside",
+        strip.background = element_blank(),
+        panel.grid.major.y = element_line(color = "gray90"),
+        panel.spacing = unit(0, "points"))
+  
+
+
+ggplot() +
+  geom_col(data = filter(combine, tag == "a"), aes(y = total, x = month_abb, fill = order), width = .3, just = 1) +
+  geom_bar(data = filter(combine, tag == "b"), aes(x = month_abb, y = total, color = tag), stat='identity', width = .3, just = 0) +
+  theme_bw() +
+  xlab("Month") +
+  ylab("Total Observations") +
+  labs(fill = "Order", color = "Relative Sampling Effort") 
+  
+
+```
+
+plot
+```{r}
+# graph
+# bird order by month
+gg_mcount <- ggplot(sum_order_month, aes(fill=order, y=total, x=month_abb)) + 
+  geom_bar(stat="identity") 
+
+gg_mcount + gg_effort + facet_grid(. ~ order)
+```
+
+diet plot
+
+test stackx
+```{r}
+df = data.frame(names = rep(LETTERS[1:3], each=4), 
+                num = c(rep(c("aaa","bbb","ccc","total"), 3)), 
+                values = c(1,2,3,7,2,2,5,10,3,4,2,9))
+p = ggplot(df, aes(x=factor(names))) + 
+    geom_bar(data=subset(df,num=="total"), aes(y=values), stat="identity",width=.5) +
+    geom_bar(data=subset(df,num!="total"), aes(y=-values,fill=factor(num)), stat="identity",width=.5) 
+print(p)
+```
+
