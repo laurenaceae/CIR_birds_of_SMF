@@ -82,7 +82,7 @@ map("world", xlim = c(lat_minx, lat_maxx), ylim = c(long_miny, long_maxy)) # set
 points(myspecies_coords[ , c("decimalLongitude", "decimalLatitude")], pch = ".") # add points
 ```
 
-## Broken up by year
+## Broken up by year and order
 
 Summary statistics
 ```{r}
@@ -131,7 +131,7 @@ ggparcoord(myspecies_coords,
 
 ```
 
-## Broken up by month
+## Broken up by month and order
 
 ```{r}
 sum_order_month <- myspecies_coords %>% 
@@ -252,9 +252,50 @@ gg_effort <- ggplot(ebird_sumstats_m, aes(x = month, y = count)) +
 gg_effort
 ```
 
-Now, let's graph the number of observations next to the level of effort to see if they link up or not
+Now, let's compare the number of observations to the level of effort to see how correlated they are
 
+All combined (no details)
 ```{r}
+# rename datasets and columns
+ebird_effort <- ebird_sumstats_m 
+ebird_effort$effort <- ebird_effort$count
+
+# keep month and effort columns
+effort_combine <- ebird_effort %>% 
+  select(month, effort) 
+# remove some columns
+effort_combine$order <- NULL
+sum_order_month$month_abb <- NULL
+
+effort_combine$month_abb <- factor(month.abb[effort_combine$month],levels=month.abb) # add month abbreviation
+
+# summarize ebird data (by number of observations, not effort)
+sum_month <- myspecies_ebird %>% 
+  group_by(month_abb) %>% 
+  summarise(observations = sum(individualCount))
+
+# combine both
+month_effort <- full_join(sum_month, effort_combine, by = c("month_abb"))
+
+# interpolate (to make next plot nicer, or don't bother)
+# use this: https://stackoverflow.com/questions/45227527/ggplot2-cannot-color-area-between-intersecting-lines-using-geom-ribbon
+
+```
+
+Plot and highlight diversions between effort and observations
+```{r}
+ggplot(data = month_effort) +
+  geom_point(aes(x = month_abb, y = effort, color = "Sampling Effort")) +
+  geom_line(aes(x = month_abb, y = effort, group = 1)) +
+  geom_point(aes(x = month_abb, y = observations, color = "Observed")) +
+  geom_line(aes(x = month_abb, y = observations, group = 1)) +
+  geom_ribbon(aes(x = month_abb, ymin = effort, ymax = pmin(observations, effort)), fill = "red", group=1, alpha=0.3) +
+  geom_ribbon(aes(x = month_abb, ymin = observations, ymax = pmin(effort, observations)), fill = "green", group=1, alpha=0.3)
+
+```
+
+For Order
+```{r, eval = FALSE}
 ebird_effort <- ebird_sumstats_m 
 ebird_effort$total <- ebird_effort$count*100
 
@@ -268,35 +309,11 @@ sum_order_month$tag <- "a"
 
 combine <- full_join(sum_order_month, effort_combine, by = c("month", "total", "order", "tag"))
 
-
 combine$month_abb <- factor(month.abb[combine$month],levels=month.abb) # add month abbreviation
 
-# then for diet
-```
-
-plot
-```{r}
-ggplot(combine, aes(fill=order, y=total, x=month_abb)) + 
-  geom_bar(stat="identity") 
 ```
 
 ```{r}
-ggplot(mapping = aes(y = total)) +
-  geom_col(data = na.omit(combine), aes(x = as.numeric(month) + .15, fill = order), width = .3) +
-  geom_col(data = combine[is.na(combine$order), ], aes(x = as.numeric(month) + .15), width = .3) +
-  facet_grid(.~tag, switch = "x")
-
-ggplot(mapping = aes(y = total)) +
-  geom_col(data = filter(combine, tag == "a"), aes(x = as.numeric(month), fill = order), width = .3) +
-  geom_col(data = filter(combine, tag == "b"), aes(x = as.numeric(month)), width = .3) +
-  facet_grid(.~month, switch = "x") +
-  theme(strip.placement = "outside",
-        strip.background = element_blank(),
-        panel.grid.major.y = element_line(color = "gray90"),
-        panel.spacing = unit(0, "points"))
-  
-
-
 ggplot() +
   geom_col(data = filter(combine, tag == "a"), aes(y = total, x = month_abb, fill = order), width = .3, just = 1) +
   geom_bar(data = filter(combine, tag == "b"), aes(x = month_abb, y = total, color = tag), stat='identity', width = .3, just = 0) +
@@ -304,30 +321,43 @@ ggplot() +
   xlab("Month") +
   ylab("Total Observations") +
   labs(fill = "Order", color = "Relative Sampling Effort") 
-  
 
 ```
 
-plot
+Sampling effort math
 ```{r}
-# graph
-# bird order by month
-gg_mcount <- ggplot(sum_order_month, aes(fill=order, y=total, x=month_abb)) + 
-  geom_bar(stat="identity") 
+month_effort$ratio <- month_effort$observations/month_effort$effort
+effort_mean <- mean(month_effort$ratio)
 
-gg_mcount + gg_effort + facet_grid(. ~ order)
+# plot
+
+# ratio
+ggplot(month_effort) +
+  geom_point(aes(x = month_abb, y = ratio)) +
+  geom_line(aes(x = month_abb, y = ratio), group = 1) +
+  theme_bw() +
+  xlab("Month") +
+  ylab("Observations per Sampling Event") +
+  ylim(c(0, NA)) +
+  geom_hline(yintercept = effort_mean, color = "blue")
+
+# effort
+ggplot(month_effort) +
+  geom_point(aes(x = month_abb, y = effort)) +
+  geom_line(aes(x = month_abb, y = effort), group = 1) +
+  theme_bw() +
+  xlab("Month") +
+  ylab("Number of Sampling Events (effort)") 
+
+# observations
+ggplot(month_effort) +
+  geom_point(aes(x = month_abb, y = observations)) +
+  geom_line(aes(x = month_abb, y = observations), group = 1) +
+  theme_bw() +
+  xlab("Month") +
+  ylab("Number of Observations") 
+
+
 ```
 
-diet plot
-
-test stackx
-```{r}
-df = data.frame(names = rep(LETTERS[1:3], each=4), 
-                num = c(rep(c("aaa","bbb","ccc","total"), 3)), 
-                values = c(1,2,3,7,2,2,5,10,3,4,2,9))
-p = ggplot(df, aes(x=factor(names))) + 
-    geom_bar(data=subset(df,num=="total"), aes(y=values), stat="identity",width=.5) +
-    geom_bar(data=subset(df,num!="total"), aes(y=-values,fill=factor(num)), stat="identity",width=.5) 
-print(p)
-```
-
+# Rare species
