@@ -20,7 +20,11 @@ library(tidyverse)
 library(GGally)
 library(ggridges)
 library(lubridate)
+library(kableExtra)
+library(RColorBrewer)
 ```
+
+# Import bird data for SMF area
 
 Process the bounding box for SMF
 
@@ -82,7 +86,9 @@ map("world", xlim = c(lat_minx, lat_maxx), ylim = c(long_miny, long_maxy)) # set
 points(myspecies_coords[ , c("decimalLongitude", "decimalLatitude")], pch = ".") # add points
 ```
 
-## Broken up by year and order
+# Summary statistics and visualization
+
+## By year and order
 
 Summary statistics
 ```{r}
@@ -117,21 +123,7 @@ ggplot(myspecies_coords, aes(x = year, y = order, fill = order)) +
 
 ```
 
-Plots in progress
-```{r, eval = FALSE}
-
-ggparcoord(myspecies_coords,
-    columns = 1:4, groupColumn = 5
-    ) 
-
-# plot of lines and change over time relative to year 1
-
-# parallel plot, order by year with families visible
-
-
-```
-
-## Broken up by month and order
+## By month and order
 
 ```{r}
 sum_order_month <- myspecies_coords %>% 
@@ -159,12 +151,12 @@ ggplot(myspecies_coords, aes(x = month, y = order, fill = order)) +
 
 ```
 
-## Creating frame for new ecological data
+## Add in data about diet
 
 ```{r}
 alltaxa <- myspecies_coords %>% 
   filter(taxonomicStatus == "ACCEPTED") %>% # remove synonymous taxa
-  distinct(order, family, genus, species) 
+  distinct(order, family, genus, species) # keep only this data
 
 # identify synonyms to look up and replace later
 nrow(alltaxa)
@@ -180,7 +172,7 @@ Export csv to fill in guilds/ecology
 write.csv(alltaxa, file = here("data", "output", "alltaxa.csv"))
 ```
 
-import data
+Import new data
 ```{r}
 alltaxa_diet <- read.csv(here("data", "input", "alltaxa.csv"))
 ```
@@ -220,12 +212,13 @@ ggplot(myspecies_coords, aes(x = month, y = diet, fill = diet)) +
 
 ```
 
+## Sampling Effort
+
 Question: How does sampling effort effect these results?
 
-count up unique name-date combinations. For every person that made observations on a day, that is 1 sampling effort for that day. 
+Count up unique name-date combinations. For every person that made observations on a day, that is 1 sampling effort for that day. 
 recordedBy = observer
 eventDate (truncated to year-month-day) = day
-
 type = PhysicalObject means museum specimen
 
 ```{r}
@@ -234,7 +227,6 @@ sum(is.na(myspecies_coords$recordedBy))
 
 # remove all observations except for ebird (sampling effort varies between platforms/methods)
 myspecies_ebird <- myspecies_coords[myspecies_coords$collectionCode == "EBIRD",]
-
 
 # find observations per person to see if there are anomalies (note ebird observations will be high)
 ebird_sumstats <- myspecies_ebird %>% 
@@ -247,7 +239,9 @@ ebird_sumstats_m <- ebird_sumstats %>%
 
 # graph
 gg_effort <- ggplot(ebird_sumstats_m, aes(x = month, y = count)) +
-  geom_col()
+  geom_col() +
+  ylab("Sampling Events") +
+  xlab("Month")
 
 gg_effort
 ```
@@ -290,11 +284,13 @@ ggplot(data = month_effort) +
   geom_point(aes(x = month_abb, y = observations, color = "Observed")) +
   geom_line(aes(x = month_abb, y = observations, group = 1)) +
   geom_ribbon(aes(x = month_abb, ymin = effort, ymax = pmin(observations, effort)), fill = "red", group=1, alpha=0.3) +
-  geom_ribbon(aes(x = month_abb, ymin = observations, ymax = pmin(effort, observations)), fill = "green", group=1, alpha=0.3)
+  geom_ribbon(aes(x = month_abb, ymin = observations, ymax = pmin(effort, observations)), fill = "green", group=1, alpha=0.3) +
+  xlab("Month") +
+  ylab("Sampling Effort")
 
 ```
 
-For Order
+For Order and sampling effort
 ```{r, eval = FALSE}
 ebird_effort <- ebird_sumstats_m 
 ebird_effort$total <- ebird_effort$count*100
@@ -304,7 +300,7 @@ effort_combine <- ebird_effort %>%
 
 effort_combine$order <- NA
 sum_order_month$month_abb <- NULL
-effort_combine$tag <- "b"
+effort_combine$tag <- "Effort"
 sum_order_month$tag <- "a"
 
 combine <- full_join(sum_order_month, effort_combine, by = c("month", "total", "order", "tag"))
@@ -313,10 +309,11 @@ combine$month_abb <- factor(month.abb[combine$month],levels=month.abb) # add mon
 
 ```
 
+Bar plot of observations (by order) next to to effort
 ```{r}
 ggplot() +
   geom_col(data = filter(combine, tag == "a"), aes(y = total, x = month_abb, fill = order), width = .3, just = 1) +
-  geom_bar(data = filter(combine, tag == "b"), aes(x = month_abb, y = total, color = tag), stat='identity', width = .3, just = 0) +
+  geom_bar(data = filter(combine, tag == "Effort"), aes(x = month_abb, y = total, color = tag), stat='identity', width = .3, just = 0) +
   theme_bw() +
   xlab("Month") +
   ylab("Total Observations") +
@@ -324,10 +321,10 @@ ggplot() +
 
 ```
 
-Sampling effort math
+Sampling effort ratio and plots
 ```{r}
-month_effort$ratio <- month_effort$observations/month_effort$effort
-effort_mean <- mean(month_effort$ratio)
+month_effort$ratio <- month_effort$observations/month_effort$effort # calculate ratio
+effort_mean <- mean(month_effort$ratio) # ratio = observations per sampling event
 
 # plot
 
@@ -337,7 +334,7 @@ ggplot(month_effort) +
   geom_line(aes(x = month_abb, y = ratio), group = 1) +
   theme_bw() +
   xlab("Month") +
-  ylab("Observations per Sampling Event") +
+  ylab("Observations per Sampling Event (ratio)") +
   ylim(c(0, NA)) +
   geom_hline(yintercept = effort_mean, color = "blue")
 
@@ -357,7 +354,211 @@ ggplot(month_effort) +
   xlab("Month") +
   ylab("Number of Observations") 
 
+```
+
+Now, try looking at month-years, instead of months aggregated of years, and then get the mean ratio of those (to account for differences between years)
+```{r}
+# find observations per person
+ebird_sumstats_m_y <- myspecies_ebird %>% 
+  group_by(recordedBy, month, year) %>% 
+  summarize(n()) 
+
+# count up effort
+ebird_sumstats_m_y <- ebird_sumstats_m_y %>% 
+  group_by(month, year) %>% 
+  summarize(effort = n())
+
+# add month abbreviation
+ebird_sumstats_m_y$month_abb <- factor(month.abb[ebird_sumstats_m_y$month],levels=month.abb) 
+
+# summarize ebird data (by number of observations, not effort)
+sum_m_y <- myspecies_ebird %>% 
+  group_by(month_abb, year) %>% 
+  summarise(observations = sum(individualCount))
+
+# combine both
+ratio_m_y <- full_join(sum_m_y, ebird_sumstats_m_y, by = c("month_abb", "year"))
+
+# take ratio (observations/effort)
+ratio_m_y$ratio <- ratio_m_y$observations/ratio_m_y$effort 
+
+ratio_m_y <- ratio_m_y %>% 
+  filter(year > 2010) 
+```
+
+```{r}
+# plot with all lines together
+ggplot(ratio_m_y) +
+  geom_point(aes(x = month_abb, y = ratio, color = year, group = year)) +
+  geom_line(aes(x = month_abb, y = ratio, color = year, group = year)) +
+  theme_bw() +
+  xlab("Month") +
+  ylab("Number of Observations") +
+  scale_color_distiller(palette = "Spectral")
+
+# plot with one year per panel
+ggplot(ratio_m_y) +
+  geom_point(aes(x = month, y = ratio)) +
+  geom_line(aes(x = month, y = ratio)) +
+  theme_bw() +
+  xlab("Month") +
+  ylab("Number of Observations") +
+  scale_color_distiller(palette = "Spectral") +
+  facet_wrap(~year)
+
+# plot with one month per panel
+ggplot(ratio_m_y) +
+  geom_point(aes(x = year, y = ratio)) +
+  geom_line(aes(x = year, y = ratio)) +
+  theme_bw() +
+  xlab("Year") +
+  ylab("Number of Observations") +
+  scale_color_distiller(palette = "Spectral") +
+  facet_wrap(~month_abb) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
 
 ```
 
-# Rare species
+Take the mean ratio of those month-years
+```{r}
+ratio_m_avg <- ratio_m_y %>% 
+  group_by(month) %>% 
+  summarize(avg_ratio = mean(ratio))
+
+# add month abbreviation
+ratio_m_avg$month_abb <- factor(month.abb[ratio_m_avg$month],levels=month.abb) 
+
+ratio_mean_grain <- mean(ratio_m_avg$avg_ratio)
+
+# ratio
+ggplot(ratio_m_avg) +
+  geom_point(aes(x = month_abb, y = avg_ratio)) +
+  geom_line(aes(x = month_abb, y = avg_ratio), group = 1) +
+  theme_bw() +
+  xlab("Month") +
+  ylab("Observations per Sampling Event (high-grain ratio)") +
+  ylim(c(0, NA)) +
+  geom_hline(yintercept = ratio_mean_grain, color = "blue")
+
+```
+
+## Rare species present at SMF
+
+```{r}
+rarespp <- myspecies_coords %>% 
+  filter(iucnRedListCategory != "LC" & iucnRedListCategory != "NE")
+
+unique(rarespp$species)
+```
+
+## Lanius ludovicianus - Loggerhead Shrike
+
+```{r}
+# filter observations for only this sp.
+losh <- myspecies_coords %>% 
+  filter(species == "Lanius ludovicianus")
+
+# seasonality of loggerhead shrikes (shrikes per month)
+losh_m <- losh %>% 
+  group_by(month) %>% 
+  summarize(total = sum(individualCount)) 
+
+losh_m$month_abb <- factor(month.abb[losh_m$month],levels=month.abb) # add month abbreviation
+
+# plot
+ggplot() +
+  geom_col(data = losh_m, aes(y = total, x = month_abb)) +
+  scale_x_discrete(limits = month.abb) + # add in empty months
+  xlab("Month") +
+  ylab("Loggerhead shrike observations")
+
+```
+
+# Species richness 
+
+Species richness is a component of biodiversity. It means the total number of species, with no regard for the proportionality of species. 
+
+```{r}
+# total richness - all species, all years (no synonyms or NAs)
+length(unique(myspecies_coords$species[myspecies_coords$taxonomicStatus == "ACCEPTED" & is.na(myspecies_coords$species) == FALSE]))
+
+# richness per year
+richness_y <- myspecies_coords %>% 
+  filter(taxonomicStatus == "ACCEPTED", is.na(species) == FALSE) %>% # remove synonyms and NAs
+  select(species, year) %>% 
+  group_by(year, species) %>% 
+  filter(!duplicated(species, year)) %>% # remove duplicate species per year
+  group_by(year) %>% 
+  summarize(n = length(year))
+
+# richness per month
+richness_m <- myspecies_coords %>% 
+  filter(taxonomicStatus == "ACCEPTED", is.na(species) == FALSE) %>% # remove synonyms and NAs
+  select(species, month) %>% 
+  group_by(month, species) %>% 
+  filter(!duplicated(species, month)) %>% # remove duplicate species per year
+  group_by(month) %>% 
+  summarize(n = length(month))
+
+richness_m$month_abb <- factor(month.abb[richness_m$month],levels=month.abb) # add month abbreviation
+
+```
+
+Plots for richness
+```{r}
+# richness by month
+ggplot() +
+  geom_col(data = richness_m, aes(y = n, x = month_abb)) +
+  scale_x_discrete(limits = month.abb) + # add in empty months
+  xlab("Month") +
+  ylab("Richness")
+
+# richness by year
+ggplot() +
+  geom_col(data = richness_y, aes(y = n, x = year)) +
+  xlab("Year") +
+  ylab("Richness")
+```
+
+Richness by order
+```{r}
+# richness per order
+richness_order <- myspecies_coords %>% 
+  filter(taxonomicStatus == "ACCEPTED", is.na(species) == FALSE) %>% # remove synonyms and NAs
+  select(species, order) %>% 
+  group_by(order, species) %>% 
+  filter(!duplicated(species, order)) %>% # remove duplicate species per year
+  group_by(order) %>% 
+  summarize(n = length(order))
+
+# rename for formatting
+names(richness_order) <- c("Order", "Species Richness")
+
+# print table
+richness_order %>%
+  kbl() %>%
+  kable_minimal()
+
+```
+
+Richness by diet
+```{r}
+# richness per diet
+richness_diet <- myspecies_coords %>% 
+  filter(taxonomicStatus == "ACCEPTED", is.na(species) == FALSE) %>% # remove synonyms and NAs
+  select(species, diet) %>% 
+  group_by(diet, species) %>% 
+  filter(!duplicated(species, diet)) %>% # remove duplicate species per year
+  group_by(diet) %>% 
+  summarize(n = length(diet))
+
+# rename for formatting
+names(richness_diet) <- c("Diet", "Species Richness")
+
+# print table
+richness_diet %>%
+  kbl() %>%
+  kable_minimal()
+
+```
+
