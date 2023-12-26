@@ -1,13 +1,13 @@
-"","Order","Species Richness"
-"1","Accipitriformes",8
-"2","Anseriformes",3
-"3","Apodiformes",7
-"4","Charadriiformes",6
-"5","Columbiformes",5
-"6","Cuculiformes",1
-"7","Falconiformes",3
-"8","Galliformes",2
-"9","Passeriformes",91
-"10","Pelecaniformes",6
-"11","Piciformes",6
-"12","Strigiformes",6
+,Order,Species Richness
+1,Accipitriformes,8
+2,Anseriformes,3
+3,Apodiformes,7
+4,Charadriiformes,6
+5,Columbiformes,5
+6,Cuculiformes,1
+7,Falconiformes,3
+8,Galliformes,2
+9,Passeriformes,91
+10,Pelecaniformes,6
+11,Piciformes,6
+12,Strigiformes,6
