@@ -69,6 +69,11 @@ citation <- gbif_citation(gbif_data)
 # get the columns that matter for mapping and cleaning the occurrence data
 myspecies_coords <- gbif_data$data[ , c("decimalLongitude", "decimalLatitude", "order", "family", "genus", "species", "taxonomicStatus", "iucnRedListCategory", "individualCount", "eventDate", "year", "month", "day", "eventTime", "type", "recordedBy", "coordinateUncertaintyInMeters", "collectionCode", "references")]
 #head(myspecies_coords)
+
+# remove NA
+myspecies_coords <- myspecies_coords %>% 
+  filter(is.na(species) ==FALSE)
+
 ```
 
 Test data and display
@@ -84,6 +89,19 @@ long_miny <- 34.454424
 # if the map doesn't appear right at first, run this command again
 map("world", xlim = c(lat_minx, lat_maxx), ylim = c(long_miny, long_maxy)) # set boundaries ("frame")
 points(myspecies_coords[ , c("decimalLongitude", "decimalLatitude")], pch = ".") # add points
+```
+
+Test synonyms
+```{r}
+synonym_data <- myspecies_coords[myspecies_coords$taxonomicStatus == "SYNONYM",]
+
+# all species marked as synonyms
+unique(synonym_data$species)
+
+# the synonyms here don't seem to be species with two scientific names
+# we will leave them in, and not filter them out for analyses
+# Haemorhous mexicanus is sometimes called synonym and sometimes not, so it was only partially removed while filtering in previous versions
+
 ```
 
 # Summary statistics and visualization
@@ -127,7 +145,7 @@ ggplot(myspecies_coords, aes(x = year, y = order, fill = order)) +
 
 ```{r}
 sum_order_month <- myspecies_coords %>% 
-  filter(year > 2009) %>% # keep only records from 2010 and on
+  filter(year > 2009 & year < 2023) %>% # keep only records from 2010 and on and before 2023 because it gets cut off
   group_by(order, month) %>% 
   summarise(total = sum(individualCount))
 
@@ -139,7 +157,17 @@ Visualize
 ```{r}
 # bird order by month
 ggplot(sum_order_month, aes(fill=order, y=total, x=month_abb)) + 
+  geom_bar(stat="identity", position="fill") 
+
+# bird order by month
+ggplot(sum_order_month, aes(fill=order, y=total, x=month_abb)) + 
   geom_bar(stat="identity") 
+
+# bird order by month - all bars same height (percent stacked bar chart), but faceted
+ggplot(sum_order_month, aes(fill=order, y=total, x=month_abb)) + 
+  geom_bar(stat="identity") +
+  facet_wrap(~order) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
 
 # ridgeline plot
 ggplot(myspecies_coords, aes(x = month, y = order, fill = order)) +
@@ -155,15 +183,8 @@ ggplot(myspecies_coords, aes(x = month, y = order, fill = order)) +
 
 ```{r}
 alltaxa <- myspecies_coords %>% 
-  filter(taxonomicStatus == "ACCEPTED") %>% # remove synonymous taxa
-  distinct(order, family, genus, species) # keep only this data
-
-# identify synonyms to look up and replace later
-nrow(alltaxa)
-length(unique(myspecies_coords$species)) # same value + number of removed synonyms
-syntaxa <- myspecies_coords %>% 
-  filter(taxonomicStatus == "SYNONYM") %>% # keep only synonymous taxa
-  distinct(order, family, genus, species) 
+  distinct(order, family, genus, species) %>%  # keep only this data
+  filter(is.na(species) == FALSE) # remove NA
 
 ```
 
@@ -174,7 +195,7 @@ write.csv(alltaxa, file = here("data", "output", "alltaxa.csv"))
 
 Import new data
 ```{r}
-alltaxa_diet <- read.csv(here("data", "input", "alltaxa.csv"))
+alltaxa_diet <- read.csv(here("data", "input", "alltaxa_diet.csv"))
 ```
 
 bind new categories to bird species, then to all observations
@@ -185,11 +206,11 @@ dietkey <- alltaxa_diet %>%
 myspecies_coords <- left_join(myspecies_coords, dietkey, by = "species")
 ```
 
-
 group_by and summarize
 ```{r}
 sum_diet_month <- myspecies_coords %>% 
-  filter(year > 2009) %>% # keep only records from 2010 and on
+  filter(year > 2009 & year < 2023) %>% # keep only records from 2010 and on and before 2023 (because cuts off partway through 2023)
+  filter(is.na(species) == FALSE) %>% 
   group_by(diet, month) %>% 
   summarise(total = sum(individualCount))
 
@@ -198,9 +219,19 @@ sum_diet_month$month_abb <- factor(month.abb[sum_diet_month$month],levels=month.
 
 visualize
 ```{r}
-# bird order by month
+# bird diet by month
 ggplot(sum_diet_month, aes(fill=diet, y=total, x=month_abb)) + 
   geom_bar(stat="identity") 
+
+# bird diet by month - all bars same height (percent stacked bar chart)
+ggplot(sum_diet_month, aes(fill=diet, y=total, x=month_abb)) + 
+  geom_bar(stat="identity", position="fill") 
+
+# bird diet by month - all bars same height (percent stacked bar chart), but faceted
+ggplot(sum_diet_month, aes(fill=diet, y=total, x=month_abb)) + 
+  geom_bar(stat="identity") +
+  facet_wrap(~diet) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
 
 # ridgeline plot
 ggplot(myspecies_coords, aes(x = month, y = diet, fill = diet)) +
@@ -479,12 +510,12 @@ ggplot() +
 Species richness is a component of biodiversity. It means the total number of species, with no regard for the proportionality of species. 
 
 ```{r}
-# total richness - all species, all years (no synonyms or NAs)
-length(unique(myspecies_coords$species[myspecies_coords$taxonomicStatus == "ACCEPTED" & is.na(myspecies_coords$species) == FALSE]))
+# total richness - all species, all years (no NAs)
+length(unique(myspecies_coords$species[is.na(myspecies_coords$species) == FALSE]))
 
 # richness per year
 richness_y <- myspecies_coords %>% 
-  filter(taxonomicStatus == "ACCEPTED", is.na(species) == FALSE) %>% # remove synonyms and NAs
+  filter(is.na(species) == FALSE) %>% # remove NAs
   select(species, year) %>% 
   group_by(year, species) %>% 
   filter(!duplicated(species, year)) %>% # remove duplicate species per year
@@ -493,7 +524,7 @@ richness_y <- myspecies_coords %>%
 
 # richness per month
 richness_m <- myspecies_coords %>% 
-  filter(taxonomicStatus == "ACCEPTED", is.na(species) == FALSE) %>% # remove synonyms and NAs
+  filter(is.na(species) == FALSE) %>% # remove NAs
   select(species, month) %>% 
   group_by(month, species) %>% 
   filter(!duplicated(species, month)) %>% # remove duplicate species per year
@@ -524,19 +555,31 @@ Richness by order
 ```{r}
 # richness per order
 richness_order <- myspecies_coords %>% 
-  filter(taxonomicStatus == "ACCEPTED", is.na(species) == FALSE) %>% # remove synonyms and NAs
+  filter(is.na(species) == FALSE) %>% # remove NAs 
   select(species, order) %>% 
   group_by(order, species) %>% 
   filter(!duplicated(species, order)) %>% # remove duplicate species per year
   group_by(order) %>% 
-  summarize(n = length(order))
+  summarize(n = length(order)) %>% 
+  mutate(n_perc = 100*n/sum(n))
+
+# we can also add in the proportion of individuals which are in those orders (2010-2022 data): columns are order and proportion
+sum_order <- sum_order_month %>% 
+  group_by(order) %>% 
+  summarize(proportion_m_avg = mean(total), proportion_y_sum = sum(total)) %>% 
+  mutate(proportion_m_avg_perc = 100*proportion_m_avg/sum(proportion_m_avg),
+         proportion_y_sum_perc = 100*proportion_y_sum/sum(proportion_y_sum))
+
+# join
+sum_order_perc <- full_join(richness_order, sum_order, by = "order") %>% 
+  select(order, n, n_perc, proportion_y_sum_perc) 
 
 # rename for formatting
-names(richness_order) <- c("Order", "Species Richness")
+names(sum_order_perc) <- c("Order", "Total Species Richness", "Proportion of Richness", "Proportion of Observations")
 
-# print table
-richness_order %>%
-  kbl() %>%
+# print table with info on proportion of individuals in order
+sum_order_perc %>%
+  kbl(digits = 1) %>%
   kable_minimal()
 
 ```
@@ -545,20 +588,31 @@ Richness by diet
 ```{r}
 # richness per diet
 richness_diet <- myspecies_coords %>% 
-  filter(taxonomicStatus == "ACCEPTED", is.na(species) == FALSE) %>% # remove synonyms and NAs
+  filter(is.na(species) == FALSE) %>% # remove NAs
   select(species, diet) %>% 
   group_by(diet, species) %>% 
   filter(!duplicated(species, diet)) %>% # remove duplicate species per year
   group_by(diet) %>% 
-  summarize(n = length(diet))
+  summarize(n = length(diet)) %>% 
+  mutate(n_perc = 100*n/sum(n))
+
+# we can also add in the proportion of individuals which are in those diets (2010-2022 data): columns are diet and proportion
+sum_diet <- sum_diet_month %>% 
+  group_by(diet) %>% 
+  summarize(proportion_m_avg = mean(total), proportion_y_sum = sum(total)) %>% 
+  mutate(proportion_m_avg_perc = 100*proportion_m_avg/sum(proportion_m_avg),
+         proportion_y_sum_perc = 100*proportion_y_sum/sum(proportion_y_sum))
+
+# join
+sum_diet_perc <- full_join(richness_diet, sum_diet, by = "diet") %>% 
+  select(diet, n, n_perc, proportion_y_sum_perc) 
 
 # rename for formatting
-names(richness_diet) <- c("Diet", "Species Richness")
-richness_diet$Diet <- str_to_title(richness_diet$Diet)
+names(sum_diet_perc) <- c("Diet", "Total Species Richness", "Proportion of Richness", "Proportion of Observations")
 
-# print table
-richness_diet %>%
-  kbl() %>%
+# print table with info on proportion of individuals in diet
+sum_diet_perc %>%
+  kbl(digits = 1) %>%
   kable_minimal()
 
 ```
@@ -568,10 +622,10 @@ richness_diet %>%
 ```{r, eval = FALSE}
 
 # diet & number of species
-write.csv(richness_diet, file = here("data", "output", "richness_diet.csv"))
+write.csv(sum_diet_perc, file = here("data", "output", "sum_diet_perc.csv"))
 
 # order & number of species
-write.csv(richness_order, file = here("data", "output", "richness_order.csv"))
+write.csv(sum_order_perc, file = here("data", "output", "sum_order_perc.csv"))
 
 # export all species & diets (to later add in common names)
 write.csv(alltaxa_diet, file = here("data", "output", "alltaxa_diet.csv"))
