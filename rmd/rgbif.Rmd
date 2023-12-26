@@ -310,7 +310,7 @@ combine$month_abb <- factor(month.abb[combine$month],levels=month.abb) # add mon
 ```
 
 Bar plot of observations (by order) next to to effort
-```{r}
+```{r, eval = FALSE}
 ggplot() +
   geom_col(data = filter(combine, tag == "a"), aes(y = total, x = month_abb, fill = order), width = .3, just = 1) +
   geom_bar(data = filter(combine, tag == "Effort"), aes(x = month_abb, y = total, color = tag), stat='identity', width = .3, just = 0) +
@@ -554,11 +554,27 @@ richness_diet <- myspecies_coords %>%
 
 # rename for formatting
 names(richness_diet) <- c("Diet", "Species Richness")
+richness_diet$Diet <- str_to_title(richness_diet$Diet)
 
 # print table
 richness_diet %>%
   kbl() %>%
   kable_minimal()
+
+```
+
+# Export tables/graphs/data
+
+```{r, eval = FALSE}
+
+# diet & number of species
+write.csv(richness_diet, file = here("data", "output", "richness_diet.csv"))
+
+# order & number of species
+write.csv(richness_order, file = here("data", "output", "richness_order.csv"))
+
+# export all species & diets (to later add in common names)
+write.csv(alltaxa_diet, file = here("data", "output", "alltaxa_diet.csv"))
 
 ```
 
