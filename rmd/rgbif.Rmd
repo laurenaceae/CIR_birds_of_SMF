@@ -224,8 +224,13 @@ ggplot(sum_diet_month, aes(fill=diet, y=total, x=month_abb)) +
   geom_bar(stat="identity") 
 
 # bird diet by month - all bars same height (percent stacked bar chart)
-ggplot(sum_diet_month, aes(fill=diet, y=total, x=month_abb)) + 
-  geom_bar(stat="identity", position="fill") 
+gg_diet_m_stacked <- ggplot(sum_diet_month, aes(fill=diet, y=total, x=month_abb)) + 
+  geom_bar(stat="identity", position="fill") +
+  ylab("Diet (proportion)") +
+  xlab("Month") +
+  labs(fill = "Diet")
+
+gg_diet_m_stacked
 
 # bird diet by month - all bars same height (percent stacked bar chart), but faceted
 ggplot(sum_diet_month, aes(fill=diet, y=total, x=month_abb)) + 
@@ -617,8 +622,61 @@ sum_diet_perc %>%
 
 ```
 
+# Santa Barbara Breeding Bird Study
+
+Read in data (https://ucsb.maps.arcgis.com/apps/webappviewer/index.html?id=d5479baf24dc498a8e8f3894f298ed2d)
+Main site: https://santabarbaraaudubon.org/santa-barbara-county-breeding-bird-study/ 
+Shout out to Mark Holmgren for this amazing dataset!
+```{r}
+sbbbs <- read.csv(here("data", "input", "SBBBS_SMF_2023-12.csv"))
+
+# common names/sci names from earlier
+all_diet_common <- read.csv(here("data", "output", "alltaxa_diet_commonname.csv"))
+
+```
+
+Summary statistics
+```{r}
+# colnames(sbbbs) # so we know what column names we are working with
+# rename some that look funny
+colnames(sbbbs)[4] <- "Species"
+sbbbs$Common.Name <- str_to_sentence(sbbbs$Common.Name) # first word uppercase, second lowercase
+# the only column in common with gbif data is Species
+
+# stats by species
+sbbbs_stats <- sbbbs %>% 
+  group_by(Species, Common.Name, Code) %>% 
+  summarize(total = length(Species))
+
+# stats by date
+sbbbs_time <- sbbbs
+# convert column to date class
+sbbbs_time$Observation.Date <- as.Date(sbbbs$Observation.Date, format = "%d-%b-%y") 
+
+# by year
+# create year column
+sbbbs_time$year <- format(as.Date(sbbbs_time$Observation.Date),"%Y") 
+# summary by year
+sbbbs_stats_y <- sbbbs_time %>% 
+  group_by(year) %>% 
+  summarize(Total = length(year))
+# this looks super variable
+# we can only conclude that sampling effort varies wildly
+
+# by month
+# create month column
+sbbbs_time$month <- as.numeric(format(as.Date(sbbbs_time$Observation.Date),"%m")) 
+# summary by month
+sbbbs_stats_m <- sbbbs_time %>% 
+  group_by(month) %>% 
+  summarize(Total = length(month))
+# april, may, and june are most popular months for breeding and nesting birds
+
+```
+
 # Export tables/graphs/data
 
+Tables
 ```{r, eval = FALSE}
 
 # diet & number of species
@@ -630,5 +688,18 @@ write.csv(sum_order_perc, file = here("data", "output", "sum_order_perc.csv"))
 # export all species & diets (to later add in common names)
 write.csv(alltaxa_diet, file = here("data", "output", "alltaxa_diet.csv"))
 
+# breeding birds per month
+write.csv(sbbbs_stats_m, file = here("data", "output", "sbbbs_stats_m.csv"))
+
+# breeding birds by species
+write.csv(sbbbs_stats, file = here("data", "output", "sbbbs_stats_spp.csv"))
+
+```
+
+Graphs
+```{r}
+ggsave(path = here("data", "output"), plot = gg_diet_m_stacked, filename = "gg_diet_m_stacked.jpg")
+
+gg_diet_m_stacked
 ```
 
