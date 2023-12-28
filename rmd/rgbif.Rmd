@@ -106,8 +106,6 @@ unique(synonym_data$species)
 
 # Summary statistics and visualization
 
-## By year and order
-
 Summary statistics
 ```{r}
 # individualCount column is the # of individuals per observation
@@ -119,7 +117,25 @@ myspecies_coords[is.na(myspecies_coords$individualCount) == TRUE,]$individualCou
 # min(myspecies_coords$individualCount, na.rm = FALSE)
 
 myspecies_coords$month_abb <- factor(month.abb[myspecies_coords$month],levels=month.abb) # add month abbreviation
+```
 
+Create list of unique species and counts
+```{r}
+# list of unique species and their classification
+alltaxa <- myspecies_coords %>% 
+  distinct(order, family, genus, species) %>%  # keep only this data
+  filter(is.na(species) == FALSE) # remove NA
+
+# counts for each species
+sum_spp <- myspecies_coords %>% 
+  group_by(species) %>% 
+  summarise(total = length(species))
+
+```
+
+## By year and order
+
+```{r}
 sum_order_year <- myspecies_coords %>% 
   group_by(order, year) %>% 
   summarise(total = sum(individualCount))
@@ -180,13 +196,6 @@ ggplot(myspecies_coords, aes(x = month, y = order, fill = order)) +
 ```
 
 ## Add in data about diet
-
-```{r}
-alltaxa <- myspecies_coords %>% 
-  distinct(order, family, genus, species) %>%  # keep only this data
-  filter(is.na(species) == FALSE) # remove NA
-
-```
 
 Export csv to fill in guilds/ecology
 ```{r, eval = FALSE}
@@ -674,6 +683,16 @@ sbbbs_stats_m <- sbbbs_time %>%
 
 ```
 
+# Edit existing tables if needed
+```{r, eval = FALSE}
+# rename columns for join
+colnames(sum_spp)[1] <- "Species"
+colnames(sum_spp)[2] <- "Total.Observed"
+# do join of spp and spp counts
+all_diet_common_sum <- full_join(all_diet_common, sum_spp, by = "Species")
+
+```
+
 # Export tables/graphs/data
 
 Tables
@@ -694,6 +713,8 @@ write.csv(sbbbs_stats_m, file = here("data", "output", "sbbbs_stats_m.csv"))
 # breeding birds by species
 write.csv(sbbbs_stats, file = here("data", "output", "sbbbs_stats_spp.csv"))
 
+# spp and spp counts
+write.csv(all_diet_common_sum, file = here("data", "output", "all_diet_common_sum.csv"))
 ```
 
 Graphs
