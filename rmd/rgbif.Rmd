@@ -687,7 +687,10 @@ sbbbs_stats_m <- sbbbs_time %>%
 
 Combine spp list with species from SMF bird list (that were not already accounted for)
 ```{r}
+# import smf species data from website (pre-processed by hand)
 smfwebsite_spp <- read.csv(here("data", "input", "species_diff_from_smf_website.csv"))
+
+
 ```
 
 Add species counts to spp list (run as needed)

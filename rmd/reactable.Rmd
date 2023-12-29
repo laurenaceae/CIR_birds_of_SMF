@@ -12,6 +12,9 @@ knitr::opts_chunk$set(echo = TRUE)
 Packages
 ```{r}
 library(reactable)
+library(reactablefmtr)
+library(htmlwidgets)
+library(here)
 ```
 
 Importing table to use
@@ -31,35 +34,114 @@ avesdata <- avesdata[,c(1,2,3,4,5,6,8,7)]
 
 ```
 
+Status column:
+
+- NN = Non-native
+- V = Vagrant
+- SM = Summer migrant
+- WM = Winter migrant
+- R = Resident
+- I = Incidental
+
+Nativity/Residency status definitions:
+
+NN = Non-native
+- Species which are introduced/non-native to the region, and which have established successful breeding populations.
+
+V = Vagrant
+- Species which are considered outside of their normal range when found here. Also known as "accidental". 
+
+SM, WM = Summer Migrant, Winter Migrant
+- Native species which are only found in this region during their winter or summer migration.
+
+R = Resident
+- Native species which are found here year-round.
+
+I = Incidental
+- Native species which are commonly found in this region, but are not typically found in this habitat or area.
+
+
 Reactable
 ```{r}
 # so we know how to rename them
 # colnames(avesdata)
 
-# print interactive table
-reactable(avesdata, 
+# create interactive table
+smf_birds_reactable <- reactable(avesdata, 
           searchable = TRUE,
-          defaultPageSize = 10,
-          pageSizeOptions = c(10, 20, 45),
+          defaultPageSize = 15,
+          pageSizeOptions = c(10, 15, 25, 45),
           bordered = TRUE,
           highlight = TRUE,
+          rownames = TRUE,
           columns = list(
-            Order = colDef(name = "Order", filterable = TRUE), # rename columns
+            Order = colDef(name = "Order", filterable = TRUE, minWidth = 110), # rename columns
             Family = colDef(name = "Family", filterable = TRUE, minWidth = 140), 
-            Genus = colDef(name = "Genus", filterable = TRUE), 
-            Species = colDef(name = "Species"), 
-            Common.Name = colDef(name = "Common Name"), 
-            Diet = colDef(name = "Diet", filterable = TRUE),
-            Total.Observed = colDef(name = "Observed", align = "right"),
-            Introduced = colDef(name = "Introduced", filterable = TRUE)),
+            Genus = colDef(name = "Genus", filterable = TRUE, minWidth = 110), 
+            Species = colDef(name = "Species", minWidth = 110), 
+            Common.Name = colDef(name = "Common Name", minWidth = 110), 
+            Diet = colDef(name = "Diet", filterable = TRUE, minWidth = 100),
+            Total.Observed = colDef(name = "Observed", align = "right", minWidth = 95, 
+                                    filterable = TRUE,
+                                    filterMethod = JS("function(rows, columnId, filterValue) 
+                                                      {return rows.filter(function(row) {return row.values[columnId] >= filterValue})}")),
+            Introduced = colDef(name = "Introduced", filterable = TRUE, minWidth = 90)),
           defaultSorted = list(Order = "asc", Family = "asc", Genus = "asc", Total.Observed = "desc"), # sort by taxonomy, then commonness
           defaultColDef = colDef(
               align = "center",
-              minWidth = 110,
+              minWidth = 35,
               headerStyle = list(background = "#f7f7f8")
   )
 )
 
+```
 
+Citation
+```{r, eval = FALSE}
+# from other rmd - run if other rmd has been run, otherwie use next chunk
+citation_1 <- as.character(citation[1])
+citation_2 <- as.character(citation[2])
+citation_3 <- as.character(citation[3])
+
+```
+
+Saved citations (don't need to run rgbif rmd again)
+```{r}
+citation_1 <- "iNaturalist contributors, iNaturalist (2023). iNaturalist Research-grade Observations. iNaturalist.org. Occurrence dataset https://doi.org/10.15468/ab3s5x accessed via GBIF.org on 2023-12-29.. Accessed from R via rgbif (https://github.com/ropensci/rgbif) on 2023-12-28\"), \n    rights = \"http://creativecommons.org/licenses/by-nc/4.0/legalcode\")"
+
+citation_2 <- "Auer T, Barker S, Barry J, Charnoky M, Curtis J, Davies I, Davis C, Downie I, Fink D, Fredericks T, Ganger J, Gerbracht J, Hanks C, Hochachka W, Iliff M, Imani J, Jordan A, Levatich T, Ligocki S, Long M T, Morris W, Morrow S, Oldham L, Padilla Obregon F, Robinson O, Rodewald A, Ruiz-Gutierrez V, Schloss M, Smith A, Smith J, Stillman A, Strimas-Mackey M, Sullivan B, Weber D, Wolf H, Wood C (2023). EOD – eBird Observation Dataset. Cornell Lab of Ornithology. Occurrence dataset https://doi.org/10.15468/aomfnb accessed via GBIF.org on 2023-12-29.. Accessed from R via rgbif (https://github.com/ropensci/rgbif) on 2023-12-28"
+
+citation_3 <- "Fahy K (2016). SBMNH Vertebrate Zoology. Version 5.1. Santa Barbara Museum of Natural History. Occurrence dataset https://doi.org/10.15468/amfnkq accessed via GBIF.org on 2023-12-29.. Accessed from R via rgbif (https://github.com/ropensci/rgbif) on 2023-12-28"
+
+```
+
+```{r}
+citation_4 <- "Holmgren, M. (2023). Santa Barbara County Breeding Bird Study [dataset]. https://santabarbaraaudubon.org/santa-barbara-county-breeding-bird-study/" # in Zotero, not using for this dataset yet
+
+```
+
+Citations together
+```{r}
+my_cite <- paste0("Citations: ", "[1] ", citation_1, " [2] ", citation_2, " [3] ", citation_3)
+```
+
+Add citations and title/caption
+```{r}
+subtitle <- "Observational data pulled from RGBIF for SMF from May 1991 to July 2023. By default, species are sorted by order, family, genus, and then commonality. To sort data, click on column headings. To filter data, use the search bar in the box under each column heading. Entering a number in the Observed column will filter for all species with more observations than that number. Species with an asterisk in the Introduced column are those which are non-native to the region and have established successful breeding populations. Diet categories include avivores (bird eating), carnivores (animal eating), herbivore (plant eating), insectivore (insect eating), and omnivore (animal and plant eating), piscivore (fish eating)."
+
+smf_birds_reactable_captioned <- smf_birds_reactable %>% 
+  add_title("Bird Species of the San Marcos Foothills") %>% 
+  add_subtitle(subtitle, font_size = 15) %>% 
+  add_source(my_cite)
+```
+
+Print table
+```{r}
+smf_birds_reactable_captioned
+```
+
+Save to html
+```{r, eval = FALSE}
+saveWidget(smf_birds_reactable_captioned, "smf_birds_interactive.html", selfcontained = F, libdir = "lib")
 ```
 
