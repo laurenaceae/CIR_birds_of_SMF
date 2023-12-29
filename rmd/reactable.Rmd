@@ -142,6 +142,11 @@ smf_birds_reactable_captioned
 
 Save to html
 ```{r, eval = FALSE}
-saveWidget(smf_birds_reactable_captioned, "smf_birds_interactive.html", selfcontained = F, libdir = "lib")
+saveWidget(smf_birds_reactable_captioned, "smf_birds_interactive.html", selfcontained = TRUE)
+```
+
+Save to html w reactablefmtr
+```{r}
+#save_reactable_test(smf_birds_reactable_captioned, "reactable_htmltest.html")
 ```
 
