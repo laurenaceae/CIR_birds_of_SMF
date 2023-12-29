@@ -1,0 +1,14 @@
+Order,Family,Genus,Species,Common.Name,Status,Diet,Total.Observed
+Pelecaniformes,Ardeidae,Bubulcus,Bubulcus ibis,Western cattle egret,I,Insectivore,NA
+Accipitriformes,Accipitridae,Buteo,Buteo albonotatus,Zone-tailed hawk,I,Carnivore,NA
+Charadriiformes,Scolopacidae,Limosa,Limosa fedoa,Marbled godwit,I,Insectivore,NA
+Charadriiformes,Laridae,Hydroprogne,Hydroprogne caspia,Caspian tern,I,Piscivore,NA
+Caprimulgiformes,Caprimulgidae,Phalaenoptilus,Phalaenoptilus nuttallii,Common poorwill,I,Insectivore,NA
+Caprimulgiformes,Apodidae,Cypseloides,Cypseloides niger,Black swift,I,Insectivore,NA
+Passeriformes,Certhiidae,Certhia,Certhia americana,Brown creeper,I,Insectivore,NA
+Passeriformes,Troglodytidae,Troglodytes,Troglodytes hiemalis,Winter wren,I,Insectivore,NA
+Passeriformes,Troglodytidae,Cistothorus,Cistothorus palustris,Marsh wren,I,Insectivore,NA
+Passeriformes,Cardinalidae,Pheucticus,Pheucticus ludovicianus,Rose-breasted grosbeak,I,Omnivore,NA
+Passeriformes,Icteridae,Agelaius,Agelaius tricolor,Tricolored blackbird,I,Omnivore,NA
+Passeriformes,Icteridae,Xanthocephalus,Xanthocephalus xanthocephalus,Yellow-headed blackbird,I,Omnivore,NA
+Passeriformes,Icteridae,Quiscalus,Quiscalus mexicanus,Great-tailed Grackle,I,Omnivore,NA

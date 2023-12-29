@@ -1,0 +1,65 @@
+---
+title: "interactive_spp_table"
+author: "LH"
+date: "2023-12-28"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Packages
+```{r}
+library(reactable)
+```
+
+Importing table to use
+```{r}
+# import from input_interactive
+avesdata <- read.csv(here("data", "input_interactive", "all_diet_common_sum.csv"))
+
+```
+
+Process table
+```{r}
+# remove numbering of species
+avesdata$X <- NULL
+
+# switch order of columns
+avesdata <- avesdata[,c(1,2,3,4,5,6,8,7)]
+
+```
+
+Reactable
+```{r}
+# so we know how to rename them
+# colnames(avesdata)
+
+# print interactive table
+reactable(avesdata, 
+          searchable = TRUE,
+          defaultPageSize = 10,
+          pageSizeOptions = c(10, 20, 45),
+          bordered = TRUE,
+          highlight = TRUE,
+          columns = list(
+            Order = colDef(name = "Order", filterable = TRUE), # rename columns
+            Family = colDef(name = "Family", filterable = TRUE, minWidth = 140), 
+            Genus = colDef(name = "Genus", filterable = TRUE), 
+            Species = colDef(name = "Species"), 
+            Common.Name = colDef(name = "Common Name"), 
+            Diet = colDef(name = "Diet", filterable = TRUE),
+            Total.Observed = colDef(name = "Observed", align = "right"),
+            Introduced = colDef(name = "Introduced", filterable = TRUE)),
+          defaultSorted = list(Order = "asc", Family = "asc", Genus = "asc", Total.Observed = "desc"), # sort by taxonomy, then commonness
+          defaultColDef = colDef(
+              align = "center",
+              minWidth = 110,
+              headerStyle = list(background = "#f7f7f8")
+  )
+)
+
+
+```
+
