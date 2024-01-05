@@ -233,11 +233,19 @@ ggplot(sum_diet_month, aes(fill=diet, y=total, x=month_abb)) +
   geom_bar(stat="identity") 
 
 # bird diet by month - all bars same height (percent stacked bar chart)
-gg_diet_m_stacked <- ggplot(sum_diet_month, aes(fill=diet, y=total, x=month_abb)) + 
+sum_diet_month_perc <- sum_diet_month %>% 
+  group_by(month) %>% 
+  mutate(total_lab = 100*total/(sum(total)))
+
+sum_diet_month_perc[sum_diet_month_perc$total_lab < 1,]$total_lab <- NA
+
+gg_diet_m_stacked <- ggplot(sum_diet_month_perc, aes(fill=diet, y=total, x=month_abb, label = ifelse(is.na(round(total_lab, digits = 0)), NA, paste0(round(total_lab, digits = 0), "%")))) + 
   geom_bar(stat="identity", position="fill") +
-  ylab("Diet (proportion)") +
+  ylab("Bird Observations by Diet (%)") +
   xlab("Month") +
-  labs(fill = "Diet")
+  labs(fill = "Diet") +
+  geom_text(size = 3, position = position_fill(vjust = 0.5), color = "white") +
+  scale_y_continuous(labels = scales::percent)
 
 gg_diet_m_stacked
 
@@ -487,38 +495,6 @@ ggplot(ratio_m_avg) +
 
 ```
 
-## Rare species present at SMF
-
-```{r}
-rarespp <- myspecies_coords %>% 
-  filter(iucnRedListCategory != "LC" & iucnRedListCategory != "NE")
-
-unique(rarespp$species)
-```
-
-## Lanius ludovicianus - Loggerhead Shrike
-
-```{r}
-# filter observations for only this sp.
-losh <- myspecies_coords %>% 
-  filter(species == "Lanius ludovicianus")
-
-# seasonality of loggerhead shrikes (shrikes per month)
-losh_m <- losh %>% 
-  group_by(month) %>% 
-  summarize(total = sum(individualCount)) 
-
-losh_m$month_abb <- factor(month.abb[losh_m$month],levels=month.abb) # add month abbreviation
-
-# plot
-ggplot() +
-  geom_col(data = losh_m, aes(y = total, x = month_abb)) +
-  scale_x_discrete(limits = month.abb) + # add in empty months
-  xlab("Month") +
-  ylab("Loggerhead shrike observations")
-
-```
-
 # Species richness 
 
 Species richness is a component of biodiversity. It means the total number of species, with no regard for the proportionality of species. 
@@ -683,9 +659,183 @@ sbbbs_stats_m <- sbbbs_time %>%
 
 ```
 
-# Edit existing tables 
+# Species of concern & rare species
 
-Combine spp list with species from SMF bird list (that were not already accounted for)
+```{r}
+rarespp <- myspecies_coords %>% 
+  filter(iucnRedListCategory != "LC" & iucnRedListCategory != "NE")
+
+unique(rarespp$species)
+```
+
+### Lanius ludovicianus - Loggerhead Shrike (LOSH)
+
+```{r}
+# filter observations for only this sp.
+losh <- myspecies_coords %>% 
+  filter(species == "Lanius ludovicianus")
+
+# seasonality of loggerhead shrikes (shrikes per month)
+losh_m <- losh %>% 
+  group_by(month) %>% 
+  summarize(total = sum(individualCount)) 
+
+losh_m$month_abb <- factor(month.abb[losh_m$month],levels=month.abb) # add month abbreviation
+
+# plot
+ggplot() +
+  geom_col(data = losh_m, aes(y = total, x = month_abb)) +
+  scale_x_discrete(limits = month.abb) + # add in empty months
+  xlab("Month") +
+  ylab("Loggerhead shrike observations")
+
+# annual trends of losh (shrikes per year)
+losh_y <- losh %>% 
+  group_by(year) %>% 
+  summarize(total = sum(individualCount)) 
+
+# plot
+ggplot() +
+  geom_bar(data = losh_y, aes(y = total, x = year), stat = "identity") +
+  xlab("Year") +
+  ylab("Loggerhead shrike observations")
+
+```
+
+### Elanus leucurus - White-tailed kite (WTKI)
+
+```{r}
+# filter observations for only this sp.
+wtki <- myspecies_coords %>% 
+  filter(species == "Elanus leucurus")
+
+# seasonality of White-tailed kite (wtki per month)
+wtki_m <- wtki %>% 
+  group_by(month) %>% 
+  summarize(total = sum(individualCount)) 
+
+wtki_m$month_abb <- factor(month.abb[wtki_m$month],levels=month.abb) # add month abbreviation
+
+# plot
+ggplot() +
+  geom_col(data = wtki_m, aes(y = total, x = month_abb)) +
+  scale_x_discrete(limits = month.abb) + # add in empty months
+  xlab("Month") +
+  ylab("White-tailed kite observations")
+# wtki are year-round residents wherever present - this matches up (follows overall annual pattern observations)
+
+# annual trends of wtki (wtki per year)
+wtki_y <- wtki %>% 
+  group_by(year) %>% 
+  summarize(total = sum(individualCount)) 
+
+# plot
+ggplot() +
+  geom_bar(data = wtki_y, aes(y = total, x = year), stat = "identity") +
+  xlab("Year") +
+  ylab("White-tailed kite observations")
+# interesting, seems to have surges every 10 years (2000, 2010, 2020) and few observations outside of that
+# huge spike in 2019 - 100+ observations! - why?
+
+wtki_2019 <- wtki %>% 
+  filter(year == 2019) %>% 
+  group_by(month) %>% 
+  summarize(total = sum(individualCount)) 
+
+wtki_2019$month_abb <- factor(month.abb[wtki_2019$month],levels=month.abb) # add month abbreviation
+
+ggplot() +
+  geom_col(data = wtki_2019, aes(y = total, x = month_abb)) +
+  scale_x_discrete(limits = month.abb) + # add in empty months
+  xlab("Month") +
+  ylab("White-tailed kite observations (2019)")
+
+# observations within 2019 seem to follow same pattern as normal annual patterns for wtki
+
+```
+
+```{r}
+# bring in breeding bird data
+
+wtki_sbbbs <- sbbbs_time %>% 
+  filter(Common.Name == "White-tailed kite")
+
+# trends of breeding/nesting wtki (wtki per year)
+wtki_sbbbs_y <- wtki_sbbbs %>% 
+  group_by(year) %>% 
+  summarize(total = length(Code)) 
+
+# plot
+ggplot() +
+  geom_col(data = wtki_sbbbs_y, aes(y = total, x = year)) +
+  scale_x_discrete(limits = factor(seq(min(wtki_sbbbs_y$year), max(wtki_sbbbs_y$year)))) +
+  xlab("Year") +
+  ylab("White-tailed kite breeding/nesting observations") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
+# this graph shows that there are few observations per year, fora total of 15 observations
+# most observations in past 5 years
+# however, notation shows that none of these were successful
+```
+
+### Ammodramus savannarum - Grasshopper sparrow (GRSP)
+
+```{r}
+# filter observations for only this sp.
+grsp <- myspecies_coords %>% 
+  filter(species == "Ammodramus savannarum")
+
+# seasonality of grsp (grsp per month)
+grsp_m <- grsp %>% 
+  group_by(month) %>% 
+  summarize(total = sum(individualCount)) 
+
+grsp_m$month_abb <- factor(month.abb[grsp_m$month],levels=month.abb) # add month abbreviation
+
+# plot
+ggplot() +
+  geom_col(data = grsp_m, aes(y = total, x = month_abb)) +
+  scale_x_discrete(limits = month.abb) + # add in empty months
+  xlab("Month") +
+  ylab("Grasshopper sparrow observations")
+# allaboutbirds map for grsp shows that it is only here for the breeding season - this matches up with month graph
+
+# annual trends of grsp (grsp per year)
+grsp_y <- grsp %>% 
+  group_by(year) %>% 
+  summarize(total = sum(individualCount)) 
+
+# plot
+ggplot() +
+  geom_bar(data = grsp_y, aes(y = total, x = year), stat = "identity") +
+  xlab("Year") +
+  ylab("Grasshopper sparrow observations")
+# breeding bird data showed that grsp have not bred here since the early 2000s (2003 last observations) - this matches up
+
+```
+```{r}
+# bring in breeding bird data
+
+grsp_sbbbs <- sbbbs_time %>% 
+  filter(Common.Name == "Grasshopper sparrow")
+
+# trends of breeding/nesting wtki (wtki per year)
+wtki_sbbbs_y <- wtki_sbbbs %>% 
+  group_by(year) %>% 
+  summarize(total = length(Code)) 
+
+# plot
+ggplot() +
+  geom_col(data = wtki_sbbbs_y, aes(y = total, x = year)) +
+  scale_x_discrete(limits = factor(seq(min(wtki_sbbbs_y$year), max(wtki_sbbbs_y$year)))) +
+  xlab("Year") +
+  ylab("White-tailed kite breeding/nesting observations") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
+```
+
+
+# Edit existing tables (INCOMPLETE)
+
+Combine spp list with species from SMF bird list (that were not already accounted for) 
 ```{r}
 # import smf species data from website (pre-processed by hand)
 smfwebsite_spp <- read.csv(here("data", "input", "species_diff_from_smf_website.csv"))
@@ -734,3 +884,22 @@ ggsave(path = here("data", "output"), plot = gg_diet_m_stacked, filename = "gg_d
 gg_diet_m_stacked
 ```
 
+Notes
+
+All these species were listed on the SMF website but were not found in any of my data above
+
+Cattle egret
+Zone-tailed hawk
+Marbled godwit
+Caspian tern
+Common poorwill
+Black swift
+American creeper (Brown creeper)
+Winter wren*
+Marsh wren
+Rose-breasted grosbeak*
+Tricolored blackbird
+Yellow-headed blackbird
+Great-tailed Grackle
+
+* = east coast species/vagrant
