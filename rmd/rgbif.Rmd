@@ -241,11 +241,13 @@ sum_diet_month_perc[sum_diet_month_perc$total_lab < 1,]$total_lab <- NA
 
 gg_diet_m_stacked <- ggplot(sum_diet_month_perc, aes(fill=diet, y=total, x=month_abb, label = ifelse(is.na(round(total_lab, digits = 0)), NA, paste0(round(total_lab, digits = 0), "%")))) + 
   geom_bar(stat="identity", position="fill") +
+  theme(axis.text.y=element_blank(), axis.ticks.y=element_blank()) +
   ylab("Bird Observations by Diet (%)") +
   xlab("Month") +
   labs(fill = "Diet") +
   geom_text(size = 3, position = position_fill(vjust = 0.5), color = "white") +
-  scale_y_continuous(labels = scales::percent)
+  scale_y_continuous(labels = scales::percent) 
+  
 
 gg_diet_m_stacked
 
